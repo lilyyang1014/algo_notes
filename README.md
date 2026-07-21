@@ -1,4 +1,3 @@
-Readme · MD
 # Algo Notes
  
 Personal LeetCode mistake notebook (Java). The goal isn't to collect answers,
