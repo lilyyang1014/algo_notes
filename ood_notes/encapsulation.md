@@ -1,7 +1,7 @@
 # Encapsulation
 
 **My version:** Encapsulation bundles data and methods into one class
-and restricts direct access — all interaction with the internal state
+and restricts direct access to the data — all interaction with the internal state
 must go through methods. But the methods must set up validation, so
 that only valid data can reach the private fields.
 
