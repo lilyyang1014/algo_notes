@@ -1,0 +1,197 @@
+## 121. Best Time to Buy and Sell Stock
+
+Date: 一刷（代码随想录，看解析）, 二刷 7/28/2026
+Difficulty: Easy
+Tags: dp, greedy, array
+
+![LC121 rolling minimum: maintain min price so far, profit = today's price minus that minimum](assets/121.png)
+
+### 核心思路（一句话）
+
+**最大利润必然对应某一个确定的卖出日，而每个卖出日的最优买入点就是它之前的最低价——所以边走边维护「历史最低价」，一趟扫完。**
+
+---
+
+### 解法一：暴力双层 loop（推导链起点）
+
+```java
+class Solution {
+    public int maxProfit(int[] prices) {
+        int profit = 0;                                   // 不交易也合法 → 初值 0
+        for (int i = 0; i < prices.length; i++) {         // i = 买入日
+            for (int j = i + 1; j < prices.length; j++) { // j = 卖出日，必须在 i 之后
+                profit = Math.max(prices[j] - prices[i], profit);
+            }
+        }
+        return profit;
+    }
+}
+```
+
+**Time O(n²) / Space O(1)**。逻辑正确但 n ≤ 1e5 时 TLE（1e10 次操作）。面试里**口头说三十秒即可，不用写出来**——报出复杂度、指出它不够，然后往下走。
+
+### 解法二：贪心（消掉内层 loop）
+
+内层 loop 在算什么？——「i 从 0 到 j-1 之中的最低价」。这是个**前缀聚合值**，从 j 走到 j+1 时只需一步增量更新，不必重算。于是内层 loop 被一个变量替代：
+
+```java
+class Solution {
+    public int maxProfit(int[] prices) {
+        int minPrice = Integer.MAX_VALUE;   // 求最小 → 初值给 MAX_VALUE
+        int profit = 0;                     // 不交易也合法 → 初值 0
+
+        for (int i = 0; i < prices.length; i++) {
+            minPrice = Math.min(minPrice, prices[i]);        // 更新历史最低
+            profit = Math.max(profit, prices[i] - minPrice); // 今天卖能赚多少
+        }
+        return profit;
+    }
+}
+```
+
+**Time O(n) / Space O(1)**。
+
+**两行顺序无所谓**：先更新 `minPrice` 则 `prices[i] - minPrice` 最坏为 0（当天买当天卖），不会算出负数；先算 profit 则用的是昨天的最低价，也对。
+
+`[7,1,5,3,6,4]` dry run：
+
+| i   | prices[i] | minPrice | profit            |
+| --- | --------- | -------- | ----------------- |
+| 0   | 7         | 7        | max(0, 0) = 0     |
+| 1   | 1         | 1        | max(0, 0) = 0     |
+| 2   | 5         | 1        | max(0, 4) = 4     |
+| 3   | 3         | 1        | max(4, 2) = 4     |
+| 4   | 6         | 1        | max(4, 5) = **5** |
+| 5   | 4         | 1        | max(5, 3) = 5     |
+
+**为什么这算贪心**：每天只做一个局部决策——「假设今天卖，就用历史最低价买」，从不回头修改之前的选择。局部最优拼出全局最优，靠的是「最大利润必然对应某一个确定的卖出日」，把所有卖出日的最优值取 max 就穷尽了全部可能。
+
+### 解法三：DP 二维数组（五步法）
+
+**1. dp 数组含义**（关键在状态要带「持股与否」）
+
+- `dp[i][0]`：第 i 天**持有**股票时，手上的最大现金
+- `dp[i][1]`：第 i 天**不持有**股票时，手上的最大现金
+
+「持有」≠「当天买入」——可能是前几天买的一直拿着。这个区分不清楚，递推必错。
+
+**2. 递推公式**
+
+```java
+dp[i][0] = Math.max(dp[i-1][0], -prices[i]);
+dp[i][1] = Math.max(dp[i-1][1], dp[i-1][0] + prices[i]);
+```
+
+**3. 初始化**
+
+```java
+dp[0][0] = -prices[0];   // 第 0 天持有 = 只能是当天买的
+dp[0][1] = 0;            // 第 0 天不持有 = 没动过
+```
+
+**4. 遍历顺序**：`i` 从 1 到 n-1，因为 `dp[i]` 依赖 `dp[i-1]`。
+
+**5. 返回**：`dp[n-1][1]`。最后一天**不持有**才是利润最大化——手里还攥着股票等于钱没落袋。
+
+```java
+class Solution {
+    public int maxProfit(int[] prices) {
+        int n = prices.length;
+        int[][] dp = new int[n][2];
+        dp[0][0] = -prices[0];
+        dp[0][1] = 0;
+        for (int i = 1; i < n; i++) {
+            dp[i][0] = Math.max(dp[i-1][0], -prices[i]);
+            dp[i][1] = Math.max(dp[i-1][1], dp[i-1][0] + prices[i]);
+        }
+        return dp[n-1][1];
+    }
+}
+```
+
+**Time O(n) / Space O(n)**。
+
+### 解法四：DP 滚动数组
+
+`dp[i]` 只依赖 `dp[i-1]` → 依赖几层就留几个变量：
+
+```java
+int hold = -prices[0], sold = 0;
+for (int i = 1; i < prices.length; i++) {
+    hold = Math.max(hold, -prices[i]);
+    sold = Math.max(sold, hold + prices[i]);
+}
+return sold;
+```
+
+**Time O(n) / Space O(1)**。
+
+**贪心和 DP 是同一个东西**：`hold` 维护的正是 `-minPrice`，`sold` 就是 `profit`。把 `hold` 换个名字，这段和解法二一字不差。**贪心 = DP 状态塌缩后的样子**——区别只在思维路径：DP 先定义状态再推转移，贪心直接看出「只需维护一个最小值」。DP 更机械但更可靠，122/123/188 一路加维度时贪心的直觉跟不上，DP 框架照样能推。
+
+---
+
+### 关键点一：`dp[i][0]` 为什么是 `-prices[i]`
+
+**只交易一次 ⇒ 买入这个动作在每条路径上只发生一次 ⇒ 买入时账上必然是 0。**
+
+账上的钱只因买入（减）和卖出（加）变动。「买入之前不可能有过卖出」——卖出必须先有买入，而买入就这一次。既然一次卖出都没发生过，就没有任何钱进过账。所以买入后是 `0 - prices[i]` = `-prices[i]`。
+
+**注意**：这不等于「买入只发生在第 0 天」。`-prices[i]` 对每一天都成立，DP 在做的是「假设我在第 i 天买入」这个分支，靠 `max` 让所有天竞争。被禁掉的是「在第 i 天买入之前已经完成过一轮买卖」。
+
+**写成 `dp[i-1][1] - prices[i]` 会怎样** —— `prices = [1,5,2,8]`：第 2 天卖掉第 0 天买的，`dp[1][1] = 4`；第 3 天带着这 4 块去买入 → `4 - 2 = 2`；第 4 天卖出 → `10`。**但正确答案是 7**（第 0 天买、第 3 天卖）。那个 10 = 4 + 6，是**两次交易**的结果。
+
+**`-prices[i]` 里隐含的那个 0，就是「不许带着前面的盈利来买」这条规则在公式里的写法。**
+
+### 关键点二：为什么不留白（`new int[n][2]`）
+
+**判据：看下标 i 的语义是「第 i 个」还是「前 i 个」。**
+
+- **「第 i 个」→ 不留白**。i=0 就是第一个真实决策点，`dp[0]` 必须**手工赋值**（股票、打家劫舍）
+- **「前 i 个 / 已处理 i 个」→ 留白**。i=0 表示一个都没处理，是空集起点（背包、LCS 1143/718/115、编辑距离）
+
+股票题里第 0 天是真实存在的一天、有真实决策（买或不买），所以下标 0 直接用，不空出来。
+
+**两种各有一个坑**：留白版的 dp 下标比原数组大 1（`text1.charAt(i-1)`），漏掉 `-1` 是 LCS 族最高频 bug；不留白版忘了手工初始化 `dp[0]` 就拿 Java 默认的 0——在股票题里意思变成「第 0 天白捡一支股票」，答案偏大且**静默**。
+
+### 复杂度对比
+
+| 解法          | Time  | Space |
+| ------------- | ----- | ----- |
+| 暴力双层 loop | O(n²) | O(1)  |
+| 贪心          | O(n)  | O(1)  |
+| DP 二维数组   | O(n)  | O(n)  |
+| DP 滚动数组   | O(n)  | O(1)  |
+
+**time 和 space 不同向**——DP 二维版拿 O(n) space 换了 O(n) time。只有滚动数组是白赚的，因为它压缩的是冗余存储、没牺牲任何东西。**滚动的前提是「只要最终值，不要过程」**；若需回溯路径（哪天买的、哪天卖的）就不能滚，中间状态被覆盖了。
+
+### 沉淀
+
+- **内层 loop 在算什么？** 若只是求「前缀的某个聚合值」（最小/最大/和/计数/出现过没有），多半能被一个边走边更新的变量替代——判据是**增量可算**（从 i 到 i+1 只需 O(1) 更新）。同族：LC53 最大子数组和、LC169 Boyer-Moore、前缀和、单调栈
+- **擂台初值方向**：求最大给 `MIN_VALUE`，求最小给 `MAX_VALUE`——初值必须是「一定会被第一个元素打败的那个」。但**答案的合法下界优先于类型边界**：本题 profit 初值该是 0，不是 `MIN_VALUE`（题面规定无法获利时返回 0，不交易是允许的）
+- **写代码前把 constraint 代进复杂度**：n ≤ 1e5 是在告诉你答案必须是 O(n) 或 O(n log n)
+- **`for` 头三段必须指向同一个 variable**：`for(int j = 1; i < ...; j++)` 语法合法、编译器不报，但 condition 用了外层 variable → 死循环 + 越界。嵌套 loop 里最隐蔽
+- **`Math.max` 内部就是三目运算符**，不处理 overflow：`Math.max(a + b, c)` 里若 `a + b` 已溢出，max 拿到的是错值
+- **贪心往往是 DP 状态塌缩后的形态**——推不出贪心时，退回 DP 定义状态，几乎总能推出来
+
+### 引申：股票系列六题的分叉点
+
+六题共用一个骨架，差别都集中在**转移来源**上：
+
+| 题               | 差异                                                                                                           |
+| ---------------- | -------------------------------------------------------------------------------------------------------------- |
+| 121（一次）      | `dp[i][0] ← -prices[i]`，起点固定为 0                                                                          |
+| 122（无限次）    | `dp[i][0] ← dp[i-1][1] - prices[i]`，起点浮动 —— **与 121 唯一的差别，其余一字不动**                           |
+| 123（最多两次）  | 加维度：四个状态，第二次持有 ← `dp[i-1][1] - prices[i]` ——**这个在 121 里错的式子，在 123 里正是第二段的入口** |
+| 188（最多 k 次） | 123 的一般化，状态数 2k+1                                                                                      |
+| 309（冷冻期）    | 改 `dp[i][0]` 能从哪天的不持有状态转移过来                                                                     |
+| 714（手续费）    | 改卖出那一行，减去 fee                                                                                         |
+
+### 关联
+
+- 122 / 123 / 188 / 309 / 714（股票系列；**知道差异 ≠ 能裸写**，122 需单独作为新题走一遍，尤其它另有一个贪心解——把所有上涨区间的差值加起来，与 121「维护历史最低价」是两条不同的贪心）
+- 189（同属「消掉重复计算」母题：189 靠找恒等式消掉 k，本题靠滚动变量消掉内层 loop）
+- 53 最大子数组和（同为「以 i 结尾的最优值」滚动维护）
+
+### Interview pitch (练口述)
+
+> "The brute force is to try every buy-sell pair, which is O(n²) — with n up to 1e5 that won't pass. The key observation is that any maximum profit corresponds to some specific selling day, and for each selling day the best buy point is simply the lowest price before it. So instead of scanning backwards each time, I maintain a running minimum: one pass, updating the min-so-far and the best profit at each step. That's O(n) time, O(1) space. I can also frame it as DP with two states — cash when holding versus not holding — where holding transitions from `-prices[i]` rather than `dp[i-1][1] - prices[i]`, because this problem allows only one transaction, so every buy starts from a zero balance. That DP collapses to exactly the same two variables as the greedy version. And changing that single transition to allow a floating start is precisely what turns this into the unlimited-transactions variant."
