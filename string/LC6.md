@@ -1,6 +1,6 @@
 ## 6. Zigzag Conversion
 
-Date: 9/23/2026
+Date: 9/23/2026, 9/24/2026
 Difficulty: Medium
 Tags: String, Simulation
 
@@ -8,7 +8,7 @@ Tags: String, Simulation
 
 ### 一刷 (9/23/2026) ❌ 未想到用 row + direction 模拟折返
 
-看解后能解释完整流程，并正确写出 StringBuilder array 的初始化；完整独立实现结果待补。
+看解后能解释完整流程，并正确写出 StringBuilder array 的初始化；当天未验证完整独立实现。
 
 #### ① 用取余分配行，无法折返
 
@@ -31,7 +31,7 @@ StringBuilder rows = new StringBuilder[numsRow];
 
 **根因**：rows 是 StringBuilder reference 的 array。创建 array 后各格为 null，还要分别放入 new StringBuilder()。
 
-> **自检信号**：调用 rows[i].append(...) 前，确认这一格已经指向实际对象。
+> **自检信号**：调用 rows[i].append(...) 前，确认这一格已经指向实际 object。
 
 #### ③ 混淆位置与方向
 
@@ -48,13 +48,30 @@ if (direction == 0) {
 
 #### ④ 只有一行时，没有移动空间
 
-讨论中确认：若省略 numRows==1 的处理，`s="AB"` 时，放完 A 后 row 变成 1，下一轮访问 rows[1] 越界。
+讨论中确认：若省略 numRows == 1 的处理，`s="AB"` 时，放完 A 后 row 变成 1，下一轮访问 rows[1] 越界。
 
 **根因**：这套上下移动逻辑要求至少两行；只有一行时结果就是原 string。
 
 > **自检信号**：写到 row += direction，检查下一次访问是否合法；先用最小行数 dry run。
 
 **自测点**：输入按原顺序扫描，为什么每行 append 后的字符顺序就是最终需要的读取顺序？
+
+---
+
+### 二刷 (9/24/2026) ❌ 将整个 array 传给 append，未逐行拼接
+
+本次正确写出初始化、row + direction 折返及单行处理；自己定位到 result 拼接处有问题。
+
+```java
+StringBuilder result = new StringBuilder();
+result.append(rows); // ❌ 追加 array 的标识，不是各行内容
+```
+
+**根因**：rows 是 StringBuilder[]，传入时调用 append(Object)，使用的是 array 的 toString()，不会自动遍历其中的 element。应通过 loop 逐行执行 result.append(rows[i])。
+
+> **自检信号**：调用 append 前，检查传入的是整个 array，还是其中一行的 StringBuilder。
+
+**自测点**：如果某一行没有分到字符，最后按行拼接是否需要跳过它？为什么？
 
 ---
 
@@ -105,6 +122,6 @@ class Solution {
 设 n = s.length()，R = numRows。
 
 **Time: O(n+R)**：初始化 R 行，分配 n 个字符，再按行拼接。
-**Space: O(n+R)**：R 个容器，行内字符、result 及输出总共占 O(n) 空间；多份字符只增加常数倍。
+**Space: O(n+R)**：R 个 StringBuilder，行内字符、result 及输出共占 O(n) 空间；多份字符只增加常数倍。
 
-若提前处理 `numRows >= s.length()` 并返回 s，剩余情况 R<n，可将执行转换部分的 Time / Space 简写为 O(n)。
+若提前处理 `numRows >= s.length()` 并返回 s，剩余情况 R < n，可将执行转换部分的 Time / Space 简写为 O(n)。
