@@ -1,6 +1,6 @@
 ## 3. Longest Substring Without Repeating Characters
 
-Date: 10/9/2026  
+Date: 10/9/2026, 10/10/2026  
 Difficulty: Medium  
 Tags: String, Hash Table, Sliding Window
 
@@ -11,7 +11,7 @@ Tags: String, Hash Table, Sliding Window
 独立想到用 HashSet 检查重复，并用 while 缩小 window。错误集中在实现：
 
 ```java
-int ans = Integer.MIN_VALUE; // ❌① 空 string 时直接返回负数，应从 0 开始
+int ans = Integer.MIN_VALUE; // ❌① 空 string 时返回负数，应从 0 开始
 
 for (int right = 0; right < s.length(); right++) {
     char c = s.charAt(i); // ❌② i 未定义，应为 right
@@ -32,11 +32,29 @@ for (int right = 0; right < s.length(); right++) {
 
 例如 `"abc"` 没有重复，原 while 不执行，ans 完全没有更新。
 
-`i` 是 variable 名字写错；移出对象和答案更新位置属于逻辑问题。本轮已讲解，尚未独立重写验收。
+i 是 variable 名字写错；移出对象和答案更新位置属于逻辑问题。本轮已讲解，当时未展示独立重写结果。
 
-> **自检信号**：移动 left 前，确认删除的正是旧 left 对应的 character；更新 ans 前，确认当前 window 已合法，并检查无重复和空 string 是否也能正确返回。
+> **自检信号**：移动 left 前，确认删除的是旧 left 对应的 character；更新 ans 前，确认 window 已合法，并检查无重复和空 string。
 
-**自测点**：读到 `"abba"` 的第二个 b 时，为什么不能直接从 set 删除 b，再只让 left 前进一步？
+**自测点（当时）**：读到 `"abba"` 的第二个 b 时，为什么不能直接删除 set 中的 b，再只让 left 前进一步？
+
+---
+
+### 二刷 (10/10/2026) ✅ 独立一次 AC，自己改用 set.size() 计算 length
+
+未修改代码，一次 AC。一刷的初始化、character 读取、移出对象和答案更新位置均写对。
+
+本次自己使用：
+
+```java
+ans = Math.max(ans, set.size());
+```
+
+能解释：当前 window 没有重复，set 中有多少个 characters，window 就有多长。
+
+也能主动回忆并解释答案更新位置：如果只在去重 while 内更新，像 `"abc"` 这样的 input 永远不进入 while，ans 就不会更新。
+
+本轮记录独立一次 AC，以及上述两点口述；没有另外记录 `"abba"` 移出过程的口答结果。
 
 ---
 
@@ -64,12 +82,18 @@ class Solution {
             }
 
             set.add(c);
-            ans = Math.max(ans, right - left + 1);
+            ans = Math.max(ans, set.size());
         }
 
         return ans;
     }
 }
+```
+
+也可以用：
+
+```java
+ans = Math.max(ans, right - left + 1);
 ```
 
 ### Set 与 window 必须对应
@@ -81,9 +105,9 @@ set 保存 s[left ... right-1] 中的 characters
 这段 window 没有重复
 ```
 
-如果 c 已存在，就从 left 开始逐个移出。直到旧的 c 被移出，才可以加入当前 c。
+如果 c 已存在，就从 left 开始逐个移出，直到旧的 c 被移出。
 
-加入之后：
+加入当前 c 后：
 
 ```text
 set 保存 s[left ... right] 中的 characters
@@ -96,6 +120,18 @@ set 保存 s[left ... right] 中的 characters
 set.remove(s.charAt(left));
 left++;
 ```
+
+### 为什么 set.size() 等于 window length
+
+更新 ans 时，set 与当前 window 对应，且 window 没有重复：
+
+```java
+set.size() == right - left + 1
+```
+
+如果 window 有重复，set.size() 只代表 distinct characters 的数量，不等于 window length。例如 `"abba"` 的 length 是 4，distinct characters 只有 2 个。
+
+**能用 set.size()，依赖前面已经正确消除了重复。**
 
 ### 为什么不能直接 remove(c)
 
@@ -131,34 +167,38 @@ set 删除 b，却保留 a
 left 从 0 移到 1
 ```
 
-此时 left 跳过的是 a，但 set 删除的是 b，二者不再对应。重新加入当前 b 后，实际范围是 `"bb"`，set 却是 `{a,b}`，这个 length 不能作为合法答案。
+Left 跳过的是 a，但 set 删除的是 b，二者不再对应。重新加入当前 b 后，实际范围是 `"bb"`，set 却是 `{a,b}`，不能把这个状态当成合法 window。
 
 ### 为什么最后更新 ans
 
 ```java
 set.add(c);
-ans = Math.max(ans, right - left + 1);
+ans = Math.max(ans, set.size());
 ```
 
-此时重复已经消除，当前 window 合法，才能用它更新答案。
+此时重复已经消除，当前 window 合法，每一轮都能参与比较。
 
 如果只在 while 中更新，`"abc"` 这种没有重复的 input 就一次也不会更新。
 
-**执行顺序：先消除重复 → 加入 c → 记录 length。**
+**不是 while 内绝对不能更新，而是不能只在那里更新。** 本版在加入 c 后统一更新，最清楚。
+
+```text
+消除重复 → 加入 c → 记录 length
+```
 
 ### 与 LC209 的区别
 
-|            | LC209                | LC3                                     |
-| ---------- | -------------------- | --------------------------------------- |
-| 目标       | 最短达标 window      | 最长无重复 window                       |
-| 缩小的原因 | 已经达标，尝试更短   | 新 character 重复，必须移出旧 character |
-| 更新答案   | 达标时先记录，再缩小 | 消除重复并加入新 character 后记录       |
+|          | LC209                | LC3                                     |
+| -------- | -------------------- | --------------------------------------- |
+| 目标     | 最短达标 window      | 最长无重复 window                       |
+| 缩小原因 | 已经达标，尝试更短   | 新 character 重复，需要移出旧 character |
+| 更新答案 | 达标时先记录，再缩小 | 消除重复并加入新 character 后记录       |
 
 两题都用 while 移动 left，但 while 的含义不同，不能直接照搬答案更新位置。
 
 ### 为什么 ans 从 0 开始
 
-本题求最大 length，所有候选都不小于 0，所以：
+本题求最大 length，候选值都不小于 0：
 
 ```java
 int ans = 0;
@@ -166,16 +206,17 @@ int ans = 0;
 
 空 string 不进入 for，自然返回 0。
 
-LC209 求最小正 length，需要把初始值设得足够大；本题求最大值，不需要 Integer.MIN_VALUE。
+LC209 求最小正 length，需要足够大的初始值；本题求最大值，从 0 开始即可。
 
 ### 常用 API
 
 ```java
-s.length();               // string 的 length
-s.charAt(right);          // 取指定 index 的 character
-set.contains(c);          // 检查 c 是否存在
+s.length();                // string 的 length
+s.charAt(right);           // 取指定 index 的 character
+set.contains(c);           // 检查 c 是否存在
 set.remove(s.charAt(left)); // 移出左侧 character
-set.add(c);               // 加入当前 character
+set.add(c);                // 加入当前 character
+set.size();                // 当前 set 中的 element 数量
 ```
 
 ### 复杂度分析
@@ -184,15 +225,15 @@ set.add(c);               // 加入当前 character
 
 **Time: expected O(n)**：right 遍历一次；left 只向右移动，总共最多 n 次。HashSet 的 add / remove / contains 按 average O(1) 计。
 
-**Extra space: O(min(n, Σ))**：set 只保存当前无重复 window 中的 characters，Σ 是 character set 的大小；通常简写为 O(n)。
+**Extra space: O(min(n, Σ))**：set 只保存当前无重复 window 中的 characters，Σ 是 character set 的大小；通常也用 O(n) 表示上界。
 
 ### 沉淀
 
 - **移动 left，必须移出旧 left 对应的 character。**
-- **Set 保存的是当前 window，不是所有见过的 characters。**
+- **Set 保存当前 window，不是所有见过的 characters。**
 - **先恢复合法状态，再记录最长 length。**
-- **最大值与最小值的初始化分开考虑。** 本题从 0 开始，LC209 用足够大的初始值。
-- **用无重复 input 检查答案更新位置，用空 string 检查初始值。**
+- **Set.size() 等于 window length 的前提是无重复且二者对应。**
+- **用无重复 input 检查答案更新位置，用空 string 检查初始化。**
 
 ### 关联
 
@@ -205,4 +246,6 @@ set.add(c);               // 加入当前 character
 >
 > For each new character, if it is already in the set, I keep removing characters from the left until the previous occurrence is removed.
 >
-> Then I add the new character and update the maximum window length. Both pointers only move forward, so the expected time complexity is O(n), and the extra space is O(n)."
+> Then I add the new character and update the maximum length using the set's size. This equals the window length because the window contains no duplicates.
+>
+> Both pointers only move forward, so the expected time complexity is O(n), and the extra space is O(n)."
